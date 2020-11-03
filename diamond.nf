@@ -48,7 +48,7 @@ process make_diamond_database {
 // DIAMONDBLASTP
 process run_diamond_blast_commands {
     tag { "diamond blastp: ${assembly_orfs}" }
-    publishDir "results/", pattern: "${assembly_orfs}.out6", mode: "copy"
+    publishDir "results/diamond_output", pattern: "*.out6", mode: "copy"
     conda "$baseDir/conda_envs/diamond.yml"
     input:
         tuple path(assembly_orfs), path(diamond_database) 

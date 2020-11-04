@@ -19,7 +19,7 @@ Optional arguments:
 
 process predict_ORFS {
     tag { "Prodigal: ${assembly_fasta}" }
-    conda "$baseDir/conda_envs/prodigal.yml"
+    conda "$baseDir/../conda_envs/prodigal.yml"
     input:
         path(assembly_fasta)
     output:
@@ -33,25 +33,26 @@ process predict_ORFS {
 
 process make_diamond_database {
     tag { "diamond makedb" }
-    conda "$baseDir/conda_envs/diamond.yml"
+    conda "$baseDir/../conda_envs/diamond.yml"
     input:
         path(reference_fasta)
     output:
-        path("diamond_reference_db*")
+        path("diamond_reference_db.dmnd")
     shell:
         """
-        diamond makedb --in $reference_fasta --db diamond_reference_db
+        diamond makedb --threads ${task.cpus} --in $reference_fasta --db diamond_reference_db
         """
 }
 
 
 // DIAMONDBLASTP
-process run_diamond_blast_commands {
+process run_diamond_blastp {
     tag { "diamond blastp: ${assembly_orfs}" }
-    publishDir "results/diamond_output", pattern: "*.out6", mode: "copy"
-    conda "$baseDir/conda_envs/diamond.yml"
+    publishDir "nextflow_results/diamond_output", pattern: "*.out6", mode: "copy"
+    conda "$baseDir/../conda_envs/diamond.yml"
     input:
-        tuple path(assembly_orfs), path(diamond_database) 
+        path(assembly_orfs)
+        path(diamond_database) 
     output:
         path("*.out6")
     script:
@@ -96,8 +97,8 @@ workflow {
 
     orfs = predict_ORFS( assemblies );
     
-    diamond_input = orfs.combine( database.toList() );
+    //diamond_input = orfs.combine( database );
 
-    run_diamond_blast_commands( diamond_input );
+    run_diamond_blastp ( orfs, database );
 
 }

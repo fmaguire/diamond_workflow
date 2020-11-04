@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+from glob import glob
+
+if not 'input_sequences' in config:
+    print("Please provide directory for assemblies "
+          "--config input_sequences=$PATH")
+    exit(1)
+
+if not 'reference_database' in config:
+    print("Please provide fasta file to use as reference database "
+          "--config reference_database=$PATH")
+    exit(1)
+
+
+samples = [".".join(filepath.split('/')[-1].split('.')[:-1]) for filepath \
+            in glob(f"{config['input_sequences']}/*.fna")]
+
+rule all:
+    input:  
+        expand("snakemake_results/diamond_output/{sample}.out6", sample=samples)
+    
+ 
+rule run_diamond_blastp_commands:
+    input:
+        diamond_db = "snakemake_workdir/reference_database.dmnd",
+        input_orf = "snakemake_workdir/{sample}.faa"
+    output:
+        "snakemake_results/diamond_output/{sample}.out6"
+    conda:
+        "../conda_envs/diamond.yml"
+    log:
+        "snakemake_workdir/logs/diamond_{sample}.log"
+    shell:
+        """
+        diamond blastp --threads 1 --max-target-seqs 25 --db {input.diamond_db} --outfmt 6 --out {output} --more-sensitive --query {input.input_orf} > {log} 2>&1 
+        """
+        
+rule make_diamond_database:
+    input:
+        config['reference_database']
+    output:
+        "snakemake_workdir/reference_database.dmnd"
+    params:
+        output_path = "snakemake_workdir/reference_database"
+    conda:
+        "../conda_envs/diamond.yml"
+    log:
+        "snakemake_workdir/logs/diamond_makedb.log"
+    shell:
+        """
+        diamond makedb --threads 1 --in {input} --db {params.output_path} > {log} 2>&1
+        """
+
+rule predict_ORFS:
+    input:
+        config['input_sequences'] + "/{sample}.fna"
+    output:
+        "snakemake_workdir/{sample}.faa"
+    conda: 
+        "../conda_envs/prodigal.yml"
+    log:
+        "snakemake_workdir/logs/prodigal_{sample}.log"
+    shell:
+        """
+        prodigal -a {output} -i {input} > {log} 2>&1
+        """
